@@ -1,0 +1,261 @@
+---
+title: "Data Blog"
+author: "Kunal"
+date: "1/30/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+library(stringr)
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+
+#loading the data
+Awards_csv <- read.csv("basketball_awards_players.csv")
+HoF_list <- read.csv("basketball_hof.csv")
+All_Stars <- read.csv("basketball_player_allstar.csv")
+Seasons_Stats <- read.csv("Seasons_Stats.csv")
+Champ_stats <- read.csv("Champs.csv.txt")
+
+Champ_stats
+All_Stars$name<- str_c(All_Stars$first_name, " ", All_Stars$last_name)
+
+
+Name_Data <- All_Stars %>%
+	select ( name, player_id)
+
+Name_Data <- unique(Name_Data) 
+
+Awards_csv$name <- NA
+
+
+# Season stats end at 2017
+Awards_csv <- Awards_csv %>%  
+  select(playerID, award)
+
+
+
+# New NBA Stats Table
+NBA_stats <- data.frame(
+  Player = unique(Name_Data$name),
+  MVPs = 0,
+  DPOYs = 0,
+  NBA_First_Teams = 0,
+  NBA_Second_Teams = 0,
+  Finals_MVPs = 0,
+  All_Star_Appearances = 0,
+  Hall_of_Fame = "no",
+  Greater_than_three_rings = "no",
+  Last_Season = NA,
+  First_Season = NA
+)
+
+names(Awards_csv)[1] <- "player_id"
+Awards_csv %>%
+	full_join ( Name_Data, by = "player_id") 
+
+
+#add to the data frame for each player
+for (i in 1:nrow(NBA_stats)) {
+  
+  for(j in 1:nrow(Champ_stats)){
+    if(Champ_stats$Player[j] == NBA_stats$Player[i]){
+      NBA_stats$Greater_than_three_rings[i] = "yes"
+    }
+  }
+  
+  data <- Name_Data%>%
+    filter(name == NBA_stats$Player[i])
+  
+
+    
+  
+  id = data[1, "player_id"]
+  
+   table <- Seasons_Stats %>%
+    filter(Player == NBA_stats$Player[i])
+
+  
+  NBA_stats$Last_Season[i] = max(table["Year"], na.rm = TRUE)
+  NBA_stats$First_Season[i] = min(table["Year"], na.rm = TRUE)
+  
+  table1 <- Awards_csv %>%
+    filter(player_id == id, award == "Most Valuable Player")
+  
+  NBA_stats$MVPs[i] = nrow(table1)
+  
+  table3 <- Awards_csv %>%
+    filter(player_id ==id, award == "All-NBA First Team")
+  
+  NBA_stats$NBA_First_Teams[i] = nrow(table3)
+  
+  table4 <- Awards_csv %>%
+    filter(player_id == id, award == "All-NBA Second Team")
+    
+  NBA_stats$NBA_Second_Teams[i] = nrow(table4)
+    
+  table5 <- Awards_csv %>%
+    filter(player_id ==id, award == "Defensive Player of the Year")
+    
+  NBA_stats$DPOYs[i] = nrow(table5)
+  
+  table6 <- Awards_csv %>%
+    filter( player_id == id, award == "Finals MVP")
+    
+  NBA_stats$Finals_MVPs[i] = nrow(table6)
+  
+  table7 <- All_Stars %>%
+    filter(player_id == id)
+    
+  NBA_stats$All_Star_Appearances[i] = nrow(table7)
+  
+  
+    
+}
+    # List as of 2012
+HoF_Names <- HoF_list %>%
+  filter(category == "Player") %>%
+  select(name)
+
+HoF_2012_2017 = data.frame(
+  name = c("Roger Brown", "Bernard King", "Gary Payton", "Richie Guerin", "Sarunas Marciolionis", "Alonzo Mourning", "Mitch Richmond", "Guy Rodgers", "Louie Dampier", "Spencer Haywood", "Dikembe Mutombo", "Jo Jo White", "Yao Ming", "Cumberland Posey", "Zelmo Beaty", "Shaquille O'Neal", "Allen Iverson", "Tracy McGrady", "Nickos Galis", "George McGinnis", "Ray Allen", "Maurice Cheeks", "Grant Hill", "Jason Kidd", "Steve Nash", "Charlie Scott", "Dino Rada", "Carl Braun", "Chuck Cooper", "Vlade Divac", "Bobby Jones", "Sidney Moncrief", "Jack Sikma", "Paul Westphal", "Kobe Bryant", "Tamika Catchings", "Tim Duncan", "Kevin Garnett", "Chris Bosh", "Bob Dandridge", "Toni Kukoc", "Pearl Moore", "Paul Pierce", "Ben Wallace", "Chris Webber")
+  )
+
+All_HoF = rbind(HoF_Names, HoF_2012_2017)
+
+# Add who made it into the HoF to NBA Stats list
+for (j in 1:nrow(NBA_stats)) {
+  for(k in 1:nrow(All_HoF)){
+    
+    if(gregexpr( All_HoF$name[k], NBA_stats$Player[j] ) > 0){
+      NBA_stats$Hall_of_Fame[j] = "yes"
+    }
+    
+  }
+}
+
+#initialize empty data frame for championship analysis
+champ_data <- data.frame(
+  Champ_Fame = 0,
+  Champ_non_Fame = 0,
+  non_Champ_Fame = 0,
+  non_Champ_non_Fame =0
+  
+)
+
+
+  
+table9 <- NBA_Hall_of_Famers%>%
+  filter(NBA_Hall_of_Famers$Greater_than_three_rings == "yes")
+  
+champ_data$Champ_Fame = nrow(table9)
+  
+table99 <- NBA_Non_Hall_of_Famers%>%
+  filter(NBA_Non_Hall_of_Famers$NBA_First_Teams == 1)
+  
+champ_data$Champ_non_Fame = nrow(table99)
+
+
+  Low_championships <- NBA_Hall_of_Famers%>%
+  filter(NBA_Hall_of_Famers$Greater_than_three_rings == "no")
+  
+champ_data$non_Champ_Fame = nrow(Low_championships)
+  
+High_championships <- NBA_Non_Hall_of_Famers%>%
+  filter(NBA_Non_Hall_of_Famers$Greater_than_three_rings == "no")
+  
+champ_data$non_Champ_non_Fame = nrow(High_championships)
+
+champ_data_for_barplot <- data.frame(
+  
+  y_axis = c("Two or less championships and no Hall of Fame", "Two or less championships and Hall of Fame", "More than two championships and no Hall of Fame", "More than two championships and Hall of Fame"),
+  x_axis = c(145, 84, 5, 23)
+  
+)
+  #bar graph looking at Hall of Fame Status vs. # of Championships won
+ggplot(champ_data_for_barplot, aes(x=x_axis, y=y_axis), fill = x_axis) + geom_bar(stat="identity", color = "black", fill="steelBlue")+scale_fill_manual(values=c("#999999", "#E69F00", "#56B4E9")) + theme_minimal() + labs(y = "", x = "Number of Players", title = "Hall of Fame status vs. # of Championships") 
+
+#filter for players in the range 1979-2012
+NBA_Final_dataset <- NBA_stats %>%
+  arrange(desc(MVPs))%>%
+  filter(!(Last_Season > 2012), !(First_Season <= 1979))
+
+#data set for NBA hall of famers
+NBA_Hall_of_Famers <- NBA_Final_dataset %>%
+  filter(Hall_of_Fame == "yes")
+
+#data set for NBA non hall of famers
+NBA_Non_Hall_of_Famers <- NBA_Final_dataset %>%
+  filter(Hall_of_Fame == "no")
+
+#histogram looking at MVP awards for NBA hall of famers
+ggplot(NBA_Hall_of_Famers, aes(x=MVPs)) +
+  geom_histogram(fill = 1:7, bins= 7) +
+  labs(
+    x = "MVPs earned",
+    y = "Number of Players",
+    title = "MVP Awards among NBA Hall-of-Famers"
+  ) 
+
+#histogram looking at MVP awards for non-NBA hall of famers
+ggplot(NBA_Non_Hall_of_Famers, aes(x=MVPs)) +
+  geom_histogram(fill = 1:1, bins = 5) +
+  labs(
+    x = "MVPs earned",
+    y = "Number of Players",
+    title = "MVP Awards among non-NBA Hall-of-Famers"
+  ) 
+
+#histogram looking at NBA First Team selections for NBA hall of famers
+ggplot(NBA_Hall_of_Famers, aes(x=NBA_First_Teams)) +
+  geom_histogram(fill = 1:10, bins= 10) +
+  labs(
+    x = "All NBA First Teams earned",
+    y = "Number of Players",
+    title = "All NBA First Teams Awards among NBA Hall-of-Famers"
+  ) 
+
+#histogram looking at NBA First Team selections for non-NBA hall of famers
+ggplot(NBA_Non_Hall_of_Famers, aes(x=NBA_First_Teams)) +
+  geom_histogram(fill = "blue", bins= 10) +
+  labs(
+    x = "All NBA First Teams earned",
+    y = "Number of Players",
+    title = "All NBA First Teams Awards among NBA Hall-of-Famers"
+  ) 
+
+#histogram looking at all-star appearances for NBA hall of famers
+ggplot(NBA_Hall_of_Famers, aes(x=All_Star_Appearances)) +
+  geom_histogram(fill =  1:12, bins= 12) +
+  labs(
+    x = "All-Star Appearances",
+    y = "Number of Players",
+    title = "All-Star Appearances among NBA Hall of Famers"
+  ) 
+
+#histogram looking at all-star appearances for non-NBA Hall of Famers
+ggplot(NBA_Non_Hall_of_Famers, aes(x=All_Star_Appearances)) +
+  geom_histogram(fill =  1:10, bins= 10) +
+  labs(
+    x = "All-Star Appearances",
+    y = "Number of Players",
+    title = "All-Star Appearances among non-NBA Hall of Famers"
+  ) 
+
+
+
+
+
+
+
+
+
+```
+
+
+
+
+
+
+

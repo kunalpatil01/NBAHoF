@@ -1,5 +1,5 @@
 ---
-title: "Data Blog"
+title: "Individual Awards"
 author: "Kunal"
 date: "1/30/2022"
 output: html_document

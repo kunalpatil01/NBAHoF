@@ -1,6 +1,6 @@
 ---
 title: "Individual Awards"
-author: "Kunal"
+author: "Kunal Patil"
 date: "1/30/2022"
 output: html_document
 ---

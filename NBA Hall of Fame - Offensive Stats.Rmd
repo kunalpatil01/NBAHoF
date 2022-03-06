@@ -1,0 +1,121 @@
+---
+title: "NBA Hall of Fame - Offensive Stats"
+author: "Derek Nakagawa"
+date: "3/6/2022"
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+library(stringr)
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+
+
+NBA_csv <- read.csv("Seasons_Stats.csv")
+HoF_list <- read.csv("basketball_hof.csv")
+
+# Season stats end at 2017
+NBA_csv <- NBA_csv %>%
+  select(Year, Player, PTS, FG., AST, G)
+
+# New NBA Stats Table
+NBA_stats <- data.frame(
+  Player = unique(NBA_csv$Player),
+  Total_Points = 0,
+  Total_Assists = 0,
+  Total_Games = 0,
+  Points_Per_Game = 0,
+  Assists_Per_Game = 0,
+  Last_Season = NA,
+  First_Season = NA,
+  Hall_of_Fame = "No"
+)
+
+# Add values to NBA Stats Table
+for (i in 1:nrow(NBA_stats)) {
+  table <- NBA_csv %>%
+    filter(Player == NBA_stats$Player[i])
+      
+  NBA_stats$Total_Points[i] = sum(table[, "PTS"])
+  NBA_stats$Total_Assists[i] = sum(table[, "AST"])
+  NBA_stats$Total_Games[i] = sum(table[, "G"])
+  
+  NBA_stats$Points_Per_Game[i] = NBA_stats$Total_Points[i] / NBA_stats$Total_Games[i]
+  NBA_stats$Assists_Per_Game[i] = NBA_stats$Total_Assists[i] / NBA_stats$Total_Games[i] 
+  
+  NBA_stats$Last_Season[i] = max(table$Year)
+  NBA_stats$First_Season[i] = min(table$Year)
+}
+
+# List as of 2012
+HoF_Names <- HoF_list %>%
+  filter(category == "Player") %>%
+  select(name)
+
+HoF_2012_2017 = data.frame(
+  name = c("Roger Brown", "Bernard King", "Gary Payton", "Richie Guerin", "Sarunas Marciolionis", "Alonzo Mourning", "Mitch Richmond", "Guy Rodgers", "Louie Dampier", "Spencer Haywood", "Dikembe Mutombo", "Jo Jo White", "Yao Ming", "Cumberland Posey", "Zelmo Beaty", "Shaquille O'Neal", "Allen Iverson", "Tracy McGrady", "Nickos Galis", "George McGinnis", "Ray Allen", "Maurice Cheeks", "Grant Hill", "Jason Kidd", "Steve Nash", "Charlie Scott", "Dino Rada", "Carl Braun", "Chuck Cooper", "Vlade Divac", "Bobby Jones", "Sidney Moncrief", "Jack Sikma", "Paul Westphal", "Kobe Bryant", "Tamika Catchings", "Tim Duncan", "Kevin Garnett", "Chris Bosh", "Bob Dandridge", "Toni Kukoc", "Pearl Moore", "Paul Pierce", "Ben Wallace", "Chris Webber")
+  )
+
+All_HoF = rbind(HoF_Names, HoF_2012_2017)
+# Add who made it into the HoF to NBA Stats list
+for (j in 1:nrow(NBA_stats)) {
+  for(k in 1:nrow(All_HoF)){
+    
+    if(gregexpr( All_HoF$name[k], NBA_stats$Player[j] ) > 0){
+      NBA_stats$Hall_of_Fame[j] = "Yes"
+    }
+    
+  }
+}
+
+# Minimum of 3 years before allowed to join HoF: 
+# The Hall of Fame list is as of 2017
+NBA_Final_DataSet <- NBA_stats %>%
+  arrange(desc(Points_Per_Game)) %>%
+  filter(Last_Season < 2012, First_Season >= 1979)
+```
+
+
+
+```{r setup, include=FALSE, echo=FALSE}
+# 
+ggplot(NBA_Final_DataSet, aes(Total_Points, Total_Assists, color = Hall_of_Fame)) +
+  geom_point() +
+  scale_color_manual(values = c("#999999", "red")) +
+  labs(
+    x = "Career Points",
+    y = "Career Assists",
+    title = "Career Points & Assists",
+    color = "Hall of Fame"
+  )
+
+
+# creating the 75th, 90th, 95th, and 99th percentile lines to see how great each player was
+# respective to other players
+Percentile_Lines <- NBA_Final_DataSet %>%
+  select(Player, Points_Per_Game, Total_Points, Hall_of_Fame) %>%
+  arrange(desc(Points_Per_Game)) %>%
+  summarise(graph_lines = quantile(Points_Per_Game, c(0.75, 0.90, 0.95, 0.99)))
+
+# taking around the top 25% of players (based on points per game) because the graph would
+# be too crowded and messy otherwise 
+top_25_players_ppg <- NBA_Final_DataSet %>%
+  select(Player, Points_Per_Game, Total_Points, Hall_of_Fame) %>%
+  arrange(desc(Points_Per_Game)) %>%
+  head(450)
+
+# graphing the top 25% of players based on points per game
+ggplot(top_25_players_ppg, aes(x=Points_Per_Game, fill=Hall_of_Fame)) +
+  geom_histogram(position = "identity", alpha = 0.8) +
+  scale_fill_manual(values = c("#999999", "red")) +
+  geom_vline(data = Percentile_Lines, aes(xintercept = graph_lines), color = "blue") +
+  labs(
+    x = "Points Per Game",
+    y = "Number of Player",
+    title = "Points Per Game of Top 25% of Players",
+    fill = "Hall of Fame"
+  )
+
+```
+
+
